@@ -3,6 +3,8 @@ using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace UnityEngine.UI
 {
@@ -12,26 +14,15 @@ namespace UnityEngine.UI
     public abstract class LoopScrollRect : UIBehaviour, IInitializePotentialDragHandler, IBeginDragHandler, IEndDragHandler, IDragHandler, IScrollHandler, ICanvasElement, ILayoutElement, ILayoutGroup
     {
         //==========LoopScrollRect==========
-        [Tooltip("Prefab Source")]
-        public LoopScrollPrefabSource prefabSource;
 
-        [Tooltip("Total count, negative means INFINITE mode")]
-        public int totalCount;
-
-        [HideInInspector]
-        [NonSerialized]
-        public LoopScrollDataSource dataSource = LoopScrollSendIndexSource.Instance;
-        public object[] objectsToFill
-        {
-            // wrapper for forward compatbility
-            set
-            {
-                if(value != null)
-                    dataSource = new LoopScrollArraySource<object>(value);
-                else
-                    dataSource = LoopScrollSendIndexSource.Instance;
-            }
-        }
+        private int totalCount;
+        private Func<int, object> dataProvider;        
+        private Func<int, object, GameObject> prefabProvider;
+        private Action<int, object, GameObject> updater;
+        
+        private readonly Dictionary<Object, ObjectPool> prefabToPool = new Dictionary<Object, ObjectPool>();
+        private readonly Dictionary<Transform, ObjectPool> itemToPool= new Dictionary<Transform, ObjectPool>();
+        private Transform poolRoot;
 
         protected float threshold = 0;
         [Tooltip("Reverse direction for dragging")]
@@ -276,6 +267,42 @@ namespace UnityEngine.UI
 
         //==========LoopScrollRect==========
 
+        public void UpdateList<D, V>(IList<D> list, V prefab, Action<int, D, V> updater) where V : Component
+        {
+            this.totalCount = list.Count;
+            this.dataProvider = i => list[i];
+            this.prefabProvider = (i, data) => prefab.gameObject;
+            this.updater = (i, data, view) => updater(i, (D) data, view.GetComponent<V>());
+            RefillCells();
+        }
+
+        public void UpdateList<D, V>(IList<D> list, Func<int, object, V> prefabProvider, Action<int, D, V> updater) where V : Component
+        {
+            this.totalCount = list.Count;
+            this.dataProvider = i => list[i];
+            this.prefabProvider = (i, data) => prefabProvider(i, data).gameObject;
+            this.updater = (i, data, view) => updater(i, (D) data, view.GetComponent<V>());
+            RefillCells();
+        }
+
+        public void UpdateData<D, V>(int totalCount, Func<int, object> dataProvider, V prefab, Action<int, D, V> updater) where V : Component
+        {
+            this.totalCount = totalCount;
+            this.dataProvider = dataProvider;
+            this.prefabProvider = (i, data) => prefab.gameObject;
+            this.updater = (i, data, view) => updater(i, (D) data, view.GetComponent<V>());
+            RefillCells();
+        }
+
+        public void UpdateData<D, V>(int totalCount, Func<int, object> dataProvider, Func<int, object, V> prefabProvider, Action<int, D, V> updater) where V : Component
+        {
+            this.totalCount = totalCount;
+            this.dataProvider = dataProvider;
+            this.prefabProvider = (i, data) => prefabProvider(i, data).gameObject;
+            this.updater = (i, data, view) => updater(i, (D) data, view.GetComponent<V>());
+            RefillCells();
+        }
+
         public void ClearCells()
         {
             if (Application.isPlaying)
@@ -283,10 +310,9 @@ namespace UnityEngine.UI
                 itemTypeStart = 0;
                 itemTypeEnd = 0;
                 totalCount = 0;
-                objectsToFill = null;
                 for (int i = content.childCount - 1; i >= 0; i--)
                 {
-                    prefabSource.ReturnObject(content.GetChild(i));
+                    ReturnContentChildObject(content.GetChild(i));
                 }
             }
         }
@@ -391,12 +417,12 @@ namespace UnityEngine.UI
                 {
                     if (itemTypeEnd < totalCount)
                     {
-                        dataSource.ProvideData(content.GetChild(i), itemTypeEnd);
+                        updater(itemTypeEnd, dataProvider(itemTypeEnd), content.GetChild(i).gameObject);
                         itemTypeEnd++;
                     }
                     else
                     {
-                        prefabSource.ReturnObject(content.GetChild(i));
+                        ReturnContentChildObject(content.GetChild(i));
                         i--;
                     }
                 }
@@ -405,7 +431,7 @@ namespace UnityEngine.UI
 
         public void RefillCellsFromEnd(int offset = 0)
         {
-            if (!Application.isPlaying || prefabSource == null)
+            if (!Application.isPlaying || itemToPool == null)
                 return;
             
             StopMovement();
@@ -417,7 +443,7 @@ namespace UnityEngine.UI
 
             for (int i = m_Content.childCount - 1; i >= 0; i--)
             {
-                prefabSource.ReturnObject(m_Content.GetChild(i));
+                ReturnContentChildObject(m_Content.GetChild(i));
             }
 
             float sizeToFill = 0, sizeFilled = 0;
@@ -446,7 +472,7 @@ namespace UnityEngine.UI
 
         public void RefillCells(int offset = 0)
         {
-            if (!Application.isPlaying || prefabSource == null)
+            if (!Application.isPlaying || itemToPool == null)
                 return;
 
             StopMovement();
@@ -459,7 +485,7 @@ namespace UnityEngine.UI
             // Don't `Canvas.ForceUpdateCanvases();` here, or it will new/delete cells to change itemTypeStart/End
             for (int i = m_Content.childCount - 1; i >= 0; i--)
             {
-                prefabSource.ReturnObject(m_Content.GetChild(i));
+                ReturnContentChildObject(m_Content.GetChild(i));
             }
 
             float sizeToFill = 0, sizeFilled = 0;
@@ -525,7 +551,7 @@ namespace UnityEngine.UI
             {
                 RectTransform oldItem = content.GetChild(0) as RectTransform;
                 size = Mathf.Max(GetSize(oldItem), size);
-                prefabSource.ReturnObject(oldItem);
+                ReturnContentChildObject(oldItem);
 
                 itemTypeStart++;
 
@@ -591,7 +617,7 @@ namespace UnityEngine.UI
             {
                 RectTransform oldItem = content.GetChild(content.childCount - 1) as RectTransform;
                 size = Mathf.Max(GetSize(oldItem), size);
-                prefabSource.ReturnObject(oldItem);
+                ReturnContentChildObject(oldItem);
 
                 itemTypeEnd--;
                 if (itemTypeEnd % contentConstraintCount == 0 || content.childCount == 0)
@@ -611,12 +637,33 @@ namespace UnityEngine.UI
         }
 
         private RectTransform InstantiateNextItem(int itemIdx)
-        {            
-            RectTransform nextItem = prefabSource.GetObject().GetComponent<RectTransform>();
+        {
+            var prefab = prefabProvider(itemIdx, dataProvider(itemIdx));
+            ObjectPool pool;
+            if (!prefabToPool.TryGetValue(prefab, out pool))
+            {
+                if (poolRoot == null)
+                {
+                    poolRoot = new GameObject("pool").transform;
+                    poolRoot.SetParent(transform, false);
+                    poolRoot.gameObject.SetActive(false);
+                }
+                pool = new ObjectPool(prefab, poolRoot);
+                prefabToPool[prefab] = pool;
+            }
+
+            RectTransform nextItem = pool.GetObject().GetComponent<RectTransform>();
+            itemToPool[nextItem] = pool;
             nextItem.transform.SetParent(content, false);
             nextItem.gameObject.SetActive(true);
-            dataSource.ProvideData(nextItem, itemIdx);
+            updater(itemIdx, dataProvider(itemIdx), nextItem.gameObject);
             return nextItem;
+        }
+        
+        private void ReturnContentChildObject(Transform child)
+        {
+            itemToPool[child].ReturnObject(child.gameObject);
+            itemToPool.Remove(child);
         }
         //==========LoopScrollRect==========
 
