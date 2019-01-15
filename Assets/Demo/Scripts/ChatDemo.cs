@@ -1,16 +1,19 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using SG;
 using UnityEngine;
 using UnityEngine.UI;
+using Random = System.Random;
 
 public class ChatDemo : MonoBehaviour
 {
     public LoopScrollRect scroll;
 
     public ChatMessageRenderer messageRendererPrefab;
+    public InputField inputField;
 
-    private readonly List<string> messages = new List<string>()
+    private readonly List<string> messages = new List<string>
     {
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Integer non odio nunc.",
         "Suspendisse potenti.",
@@ -56,10 +59,79 @@ public class ChatDemo : MonoBehaviour
 
     private void Start()
     {
+        for (var i = 0; i < messages.Count; i++)
+        {
+            messages[i] = "<color=red>" + i + "</color> " + messages[i];
+        }
+
+        UpdateScroll();
+    }
+
+    public void ScrollToStart()
+    {
+        scroll.ScrollToCell(0);
+    }
+
+    public void ScrollToMid()
+    {
+        scroll.ScrollToCell(messages.Count / 2);
+    }
+
+    public void ScrollToEnd()
+    {
+        scroll.ScrollToCell(int.MaxValue);
+    }
+
+    public void SendChatMessage()
+    {
+        messages.Add(inputField.text);
+        var positionAtEnd = scroll.normalizedPosition.y >= 1;
+        UpdateScroll();
+        if (positionAtEnd)
+        {
+            scroll.ScrollToCell(int.MaxValue);
+        }
+    }
+
+    public void AppendMessages()
+    {
+        var appendix = "" + (int) (Time.time * 1000);
+        for (var i = 0; i < messages.Count; i++)
+        {
+            messages[i] += " " + appendix;
+        }
+
+        UpdateScroll();
+    }
+
+    public void RemoveRandomMessages(int removeCount)
+    {
+        var rnd = new Random(0xBADFACE);
+        while (messages.Count > 0 && removeCount > 0)
+        {
+            messages.RemoveAt(rnd.Next(messages.Count));
+            removeCount--;
+        }
+
+        UpdateScroll();
+    }
+
+    private void OnRemoveClick(int index)
+    {
+        messages.RemoveAt(index);
+        UpdateScroll();
+    }
+
+    public void UpdateScroll()
+    {
         scroll.UpdateList(
             messages,
             messageRendererPrefab,
-            (i, msg, view) => view.UpdateState(i, msg)
+            (i, msg, view) =>
+            {
+                view.Init(OnRemoveClick).UpdateState(i, msg);
+                LayoutRebuilder.ForceRebuildLayoutImmediate(view.GetComponent<RectTransform>());
+            }
         );
     }
 }
