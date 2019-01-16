@@ -303,20 +303,10 @@ namespace UnityEngine.UI
             RefreshCells();
         }
 
-        public void ScrollToCell(int index, float speed)
+        public void ScrollToCell(int index, float speed = 5000)
         {
-            if(totalCount >= 0 && (index < 0 || index >= totalCount))
-            {
-                Debug.LogWarningFormat("invalid index {0}", index);
-                return;
-            }
-            if(speed <= 0)
-            {
-                Debug.LogWarningFormat("invalid speed {0}", speed);
-                return;
-            }
             StopAllCoroutines();
-            StartCoroutine(ScrollToCellCoroutine(index, speed));
+            StartCoroutine(ScrollToCellCoroutine(Mathf.Clamp(index, 0, totalCount - 1), speed));
         }
 
         IEnumerator ScrollToCellCoroutine(int index, float speed)
