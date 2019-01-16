@@ -273,7 +273,7 @@ namespace UnityEngine.UI
             this.dataProvider = i => list[i];
             this.prefabProvider = (i, data) => prefab.gameObject;
             this.updater = (i, data, view) => updater(i, (D) data, view.GetComponent<V>());
-            RefillCells();
+            RefreshCells();
         }
 
         public void UpdateList<D, V>(IList<D> list, Func<int, object, V> prefabProvider, Action<int, D, V> updater) where V : Component
@@ -282,7 +282,7 @@ namespace UnityEngine.UI
             this.dataProvider = i => list[i];
             this.prefabProvider = (i, data) => prefabProvider(i, data).gameObject;
             this.updater = (i, data, view) => updater(i, (D) data, view.GetComponent<V>());
-            RefillCells();
+            RefreshCells();
         }
 
         public void UpdateData<D, V>(int totalCount, Func<int, object> dataProvider, V prefab, Action<int, D, V> updater) where V : Component
@@ -291,7 +291,7 @@ namespace UnityEngine.UI
             this.dataProvider = dataProvider;
             this.prefabProvider = (i, data) => prefab.gameObject;
             this.updater = (i, data, view) => updater(i, (D) data, view.GetComponent<V>());
-            RefillCells();
+            RefreshCells();
         }
 
         public void UpdateData<D, V>(int totalCount, Func<int, object> dataProvider, Func<int, object, V> prefabProvider, Action<int, D, V> updater) where V : Component
@@ -300,21 +300,7 @@ namespace UnityEngine.UI
             this.dataProvider = dataProvider;
             this.prefabProvider = (i, data) => prefabProvider(i, data).gameObject;
             this.updater = (i, data, view) => updater(i, (D) data, view.GetComponent<V>());
-            RefillCells();
-        }
-
-        public void ClearCells()
-        {
-            if (Application.isPlaying)
-            {
-                itemTypeStart = 0;
-                itemTypeEnd = 0;
-                totalCount = 0;
-                for (int i = content.childCount - 1; i >= 0; i--)
-                {
-                    ReturnContentChildObject(content.GetChild(i));
-                }
-            }
+            RefreshCells();
         }
 
         public void ScrollToCell(int index, float speed)
@@ -411,6 +397,10 @@ namespace UnityEngine.UI
         {
             if (Application.isPlaying && this.isActiveAndEnabled)
             {
+                if (reverseDirection && content.childCount == 0)
+                {
+                    itemTypeStart = totalCount;
+                }
                 itemTypeEnd = itemTypeStart;
                 // recycle items if we can
                 for (int i = 0; i < content.childCount; i++)
@@ -426,88 +416,8 @@ namespace UnityEngine.UI
                         i--;
                     }
                 }
+                UpdateBounds(true);
             }
-        }
-
-        public void RefillCellsFromEnd(int offset = 0)
-        {
-            if (!Application.isPlaying || itemToPool == null)
-                return;
-            
-            StopMovement();
-            itemTypeEnd = reverseDirection ? offset : totalCount - offset;
-            itemTypeStart = itemTypeEnd;
-
-            if (totalCount >= 0 && itemTypeStart % contentConstraintCount != 0)
-                Debug.LogWarning("Grid will become strange since we can't fill items in the last line");
-
-            for (int i = m_Content.childCount - 1; i >= 0; i--)
-            {
-                ReturnContentChildObject(m_Content.GetChild(i));
-            }
-
-            float sizeToFill = 0, sizeFilled = 0;
-            if (directionSign == -1)
-                sizeToFill = viewRect.rect.size.y;
-            else
-                sizeToFill = viewRect.rect.size.x;
-            
-            while(sizeToFill > sizeFilled)
-            {
-                float size = reverseDirection ? NewItemAtEnd() : NewItemAtStart();
-                if(size <= 0) break;
-                sizeFilled += size;
-            }
-
-            Vector2 pos = m_Content.anchoredPosition;
-            float dist = Mathf.Max(0, sizeFilled - sizeToFill);
-            if (reverseDirection)
-                dist = -dist;
-            if (directionSign == -1)
-                pos.y = dist;
-            else if (directionSign == 1)
-                pos.x = -dist;
-            m_Content.anchoredPosition = pos;
-        }
-
-        public void RefillCells(int offset = 0)
-        {
-            if (!Application.isPlaying || itemToPool == null)
-                return;
-
-            StopMovement();
-            itemTypeStart = reverseDirection ? totalCount - offset : offset;
-            itemTypeEnd = itemTypeStart;
-
-            if (totalCount >= 0 && itemTypeStart % contentConstraintCount != 0)
-                Debug.LogWarning("Grid will become strange since we can't fill items in the first line");
-
-            // Don't `Canvas.ForceUpdateCanvases();` here, or it will new/delete cells to change itemTypeStart/End
-            for (int i = m_Content.childCount - 1; i >= 0; i--)
-            {
-                ReturnContentChildObject(m_Content.GetChild(i));
-            }
-
-            float sizeToFill = 0, sizeFilled = 0;
-            // m_ViewBounds may be not ready when RefillCells on Start
-            if (directionSign == -1)
-                sizeToFill = viewRect.rect.size.y;
-            else
-                sizeToFill = viewRect.rect.size.x;
-            
-            while(sizeToFill > sizeFilled)
-            {
-                float size = reverseDirection ? NewItemAtStart() : NewItemAtEnd();
-                if(size <= 0) break;
-                sizeFilled += size;
-            }
-
-            Vector2 pos = m_Content.anchoredPosition;
-            if (directionSign == -1)
-                pos.y = 0;
-            else if (directionSign == 1)
-                pos.x = 0;
-            m_Content.anchoredPosition = pos;
         }
 
         protected float NewItemAtStart()
@@ -570,7 +480,6 @@ namespace UnityEngine.UI
             }
             return size;
         }
-
 
         protected float NewItemAtEnd()
         {
