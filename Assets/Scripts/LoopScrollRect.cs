@@ -24,6 +24,8 @@ namespace UnityEngine.UI
         private readonly Dictionary<Transform, ObjectPool> itemToPool= new Dictionary<Transform, ObjectPool>();
         private Transform poolRoot;
 
+        private bool refreshDirty = true;
+
         protected float threshold = 0;
         [Tooltip("Reverse direction for dragging")]
         public bool reverseDirection = false;
@@ -385,27 +387,39 @@ namespace UnityEngine.UI
 
         public void RefreshCells()
         {
-            if (Application.isPlaying && this.isActiveAndEnabled)
+            refreshDirty = true;
+        }
+
+        private void Update()
+        {
+            if (Application.isPlaying && isActiveAndEnabled && refreshDirty)
             {
-                if (reverseDirection && content.childCount == 0)
-                {
-                    itemTypeStart = totalCount;
-                    itemTypeEnd = totalCount;
-                }
-                
-                if (reverseDirection)
-                    itemTypeStart = Mathf.Clamp(itemTypeEnd, 0, totalCount);
-                else 
-                    itemTypeEnd = Mathf.Clamp(itemTypeStart, 0, totalCount);
-
-                for (int i = content.childCount - 1; i >= 0; i--)
-                {
-                    ReturnContentChildObject(content.GetChild(i));
-                }
-
-                EnsureLayoutHasRebuilt();
-                UpdateBounds(true);
+                refreshDirty = false;
+                DoRefreshCells();
             }
+        }
+
+        private void DoRefreshCells()
+        {
+            if (reverseDirection && content.childCount == 0)
+            {
+                itemTypeStart = totalCount;
+                itemTypeEnd = totalCount;
+            }
+
+            if (reverseDirection)
+                itemTypeStart = Mathf.Clamp(itemTypeEnd, 0, totalCount);
+            else
+                itemTypeEnd = Mathf.Clamp(itemTypeStart, 0, totalCount);
+
+            for (int i = content.childCount - 1; i >= 0; i--)
+            {
+                ReturnContentChildObject(content.GetChild(i));
+            }
+
+            LayoutRebuilder.ForceRebuildLayoutImmediate(content);
+//            EnsureLayoutHasRebuilt();
+            UpdateBounds(true);
         }
 
         protected float NewItemAtStart()
