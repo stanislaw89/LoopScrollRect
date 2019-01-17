@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using System;
@@ -800,7 +800,7 @@ namespace UnityEngine.UI
                     }
                 }
 
-                if (m_Velocity != Vector2.zero)
+                if (m_Velocity.sqrMagnitude > 0.001f)
                 {
                     if (m_MovementType == MovementType.Clamped)
                     {
