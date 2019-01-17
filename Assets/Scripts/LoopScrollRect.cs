@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using System;
@@ -390,22 +390,20 @@ namespace UnityEngine.UI
                 if (reverseDirection && content.childCount == 0)
                 {
                     itemTypeStart = totalCount;
+                    itemTypeEnd = totalCount;
                 }
-                itemTypeEnd = itemTypeStart;
-                // recycle items if we can
-                for (int i = 0; i < content.childCount; i++)
+                
+                if (reverseDirection)
+                    itemTypeStart = Mathf.Clamp(itemTypeEnd, 0, totalCount);
+                else 
+                    itemTypeEnd = Mathf.Clamp(itemTypeStart, 0, totalCount);
+
+                for (int i = content.childCount - 1; i >= 0; i--)
                 {
-                    if (itemTypeEnd < totalCount)
-                    {
-                        updater(itemTypeEnd, dataProvider(itemTypeEnd), content.GetChild(i).gameObject);
-                        itemTypeEnd++;
-                    }
-                    else
-                    {
-                        ReturnContentChildObject(content.GetChild(i));
-                        i--;
-                    }
+                    ReturnContentChildObject(content.GetChild(i));
                 }
+
+                EnsureLayoutHasRebuilt();
                 UpdateBounds(true);
             }
         }
