@@ -19,6 +19,7 @@ namespace UnityEngine.UI
             {
                 size += LayoutUtility.GetPreferredHeight(item);
             }
+
             return size;
         }
 
@@ -44,54 +45,36 @@ namespace UnityEngine.UI
             }
         }
 
-        protected override bool UpdateItems(Bounds viewBounds, Bounds contentBounds)
+        protected override bool UpdateItems(Bounds viewBounds, Bounds contentBounds, bool refill)
         {
             bool changed = false;
+
             if (viewBounds.min.y < contentBounds.min.y)
             {
-                float size = NewItemAtEnd(), totalSize = size;
-                while(size > 0 && viewBounds.min.y < contentBounds.min.y - totalSize)
-                {
-                    size = NewItemAtEnd();
-                    totalSize += size;
-                }
-                if (totalSize > 0)
-                    changed = true;
+                float filled = 0;
+                filled += AddItemsTill(true, filled, contentBounds.min.y - viewBounds.min.y);
+                if (refill)
+                    filled += AddItemsTill(false, filled, viewBounds.size.y);
+                changed |= filled > 0;
             }
             else if (viewBounds.min.y > contentBounds.min.y + threshold)
             {
-                float size = DeleteItemAtEnd(), totalSize = size;
-                while (size > 0 && viewBounds.min.y > contentBounds.min.y + threshold + totalSize)
-                {
-                    size = DeleteItemAtEnd();
-                    totalSize += size;
-                }
-                if (totalSize > 0)
-                    changed = true;
+                changed |= DeleteItems(true, viewBounds.min.y - contentBounds.min.y - threshold);
             }
 
             if (viewBounds.max.y > contentBounds.max.y)
             {
-                float size = NewItemAtStart(), totalSize = size;
-                while (size > 0 && viewBounds.max.y > contentBounds.max.y + totalSize)
-                {
-                    size = NewItemAtStart();
-                    totalSize += size;
-                }
-                if (totalSize > 0)
-                    changed = true;
+                float filled = 0;
+                filled += AddItemsTill(false, filled, viewBounds.max.y - contentBounds.max.y);
+                if (refill)
+                    filled += AddItemsTill(true, filled, viewBounds.size.y);
+                changed |= filled > 0;
             }
             else if (viewBounds.max.y < contentBounds.max.y - threshold)
             {
-                float size = DeleteItemAtStart(), totalSize = size;
-                while (size > 0 && viewBounds.max.y < contentBounds.max.y - threshold - totalSize)
-                {
-                    size = DeleteItemAtStart();
-                    totalSize += size;
-                }
-                if (totalSize > 0)
-                    changed = true;
+                changed |= DeleteItems(false, contentBounds.max.y - threshold - viewBounds.max.y);
             }
+
             return changed;
         }
     }

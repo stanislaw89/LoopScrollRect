@@ -94,7 +94,7 @@ namespace UnityEngine.UI
             }
         }
 
-        protected virtual bool UpdateItems(Bounds viewBounds, Bounds contentBounds) { return false; }
+        protected virtual bool UpdateItems(Bounds viewBounds, Bounds contentBounds, bool refill) { return false; }
         //==========LoopScrollRect==========
 
         public enum MovementType
@@ -419,7 +419,7 @@ namespace UnityEngine.UI
 
             LayoutRebuilder.ForceRebuildLayoutImmediate(content);
 //            EnsureLayoutHasRebuilt();
-            UpdateBounds(true);
+            UpdateBounds(true, true);
         }
 
         protected float NewItemAtStart()
@@ -481,6 +481,34 @@ namespace UnityEngine.UI
                 m_ContentStartPosition -= offset;
             }
             return size;
+        }
+
+        protected float AddItemsTill(bool atEnd, float filledSize, float tillSize)
+        {
+            while (filledSize < tillSize)
+            {
+                float size = atEnd ? NewItemAtEnd() : NewItemAtStart();
+                if (size <= 0)
+                    break;
+                filledSize += size;
+            }
+
+            return filledSize;
+        }
+
+        protected bool DeleteItems(bool atEnd, float deleteSize)
+        {
+            bool changed = false;
+            while (deleteSize > 0)
+            {
+                float size = atEnd ? DeleteItemAtEnd() : DeleteItemAtStart();
+                if (size <= 0)
+                    break;
+                deleteSize -= size;
+                changed = true;
+            }
+
+            return changed;
         }
 
         protected float NewItemAtEnd()
@@ -812,7 +840,7 @@ namespace UnityEngine.UI
                     }
                 }
 
-                if (m_Velocity.sqrMagnitude > 0.001f)
+                if (m_Velocity.sqrMagnitude > 0.01f)
                 {
                     if (m_MovementType == MovementType.Clamped)
                     {
@@ -1134,7 +1162,7 @@ namespace UnityEngine.UI
             }
         }
 
-        private void UpdateBounds(bool updateItems = false)
+        private void UpdateBounds(bool updateItems = false, bool refill = false)
         {
             m_ViewBounds = new Bounds(viewRect.rect.center, viewRect.rect.size);
             m_ContentBounds = GetBounds();
@@ -1144,7 +1172,7 @@ namespace UnityEngine.UI
 
             // ============LoopScrollRect============
             // Don't do this in Rebuild
-            if (Application.isPlaying && updateItems && UpdateItems(m_ViewBounds, m_ContentBounds))
+            if (Application.isPlaying && updateItems && UpdateItems(m_ViewBounds, m_ContentBounds, refill))
             {
                 Canvas.ForceUpdateCanvases();
                 m_ContentBounds = GetBounds();
