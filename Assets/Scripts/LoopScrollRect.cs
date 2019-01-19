@@ -268,6 +268,16 @@ namespace UnityEngine.UI
         }
 
         //==========LoopScrollRect==========
+        
+        public void UpdateEnumerable<D, V>(IEnumerable<D> data, V prefab, Action<int, D, V> updater) where V : Component
+        {
+            UpdateList(data.ToList(), prefab, updater);
+        }
+
+        public void UpdateEnumerable<D, V>(IEnumerable<D> data, Func<int, object, V> prefabProvider, Action<int, D, V> updater) where V : Component
+        {
+            UpdateList(data.ToList(), prefabProvider, updater);
+        }
 
         public void UpdateList<D, V>(IList<D> list, V prefab, Action<int, D, V> updater) where V : Component
         {
@@ -311,7 +321,7 @@ namespace UnityEngine.UI
             StartCoroutine(ScrollToCellCoroutine(Mathf.Clamp(index, 0, totalCount - 1), speed));
         }
 
-        IEnumerator ScrollToCellCoroutine(int index, float speed)
+        private IEnumerator ScrollToCellCoroutine(int index, float speed)
         {
             bool needMoving = true;
             while(needMoving)
