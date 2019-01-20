@@ -5,32 +5,42 @@ namespace UnityEngine.UI
 {
     public class ObjectPool
     {
+        private readonly Transform container;
         private readonly GameObject prefab;
-        private readonly Transform root;
-        private readonly Stack<GameObject> pool = new Stack<GameObject>();
 
-        public ObjectPool(GameObject prefab, Transform root)
+        private readonly Stack<GameObject> stack = new Stack<GameObject>();
+
+        public ObjectPool(Transform container, GameObject prefab)
         {
+            this.container = container;
             this.prefab = prefab;
-            this.root = root;
         }
 
         public GameObject GetObject()
         {
-            if (pool.Count > 0)
+            if (stack.Count > 0)
             {
-                return pool.Pop();
+                var existingObject = stack.Pop();
+                existingObject.GetComponent<PooledObject>().ownerPool = this;
+                return existingObject;
             }
             else
             {
-                return Object.Instantiate(prefab);
+                var newObject = Object.Instantiate(prefab);
+                newObject.AddComponent<PooledObject>().ownerPool = this;
+                return newObject;
             }
         }
 
-        public void ReturnObject(GameObject go)
+        public static void ReleaseObject(GameObject go)
         {
-            go.transform.SetParent(root);
-            pool.Push(go);
+            var pooledObject = go.GetComponent<PooledObject>();
+            if (pooledObject != null && pooledObject.ownerPool != null)
+            {
+                go.transform.SetParent(pooledObject.ownerPool.container, false);
+                pooledObject.ownerPool.stack.Push(go);
+                pooledObject.ownerPool = null;
+            }
         }
     }
 }

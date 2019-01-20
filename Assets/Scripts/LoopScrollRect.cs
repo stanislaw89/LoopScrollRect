@@ -21,8 +21,7 @@ namespace UnityEngine.UI
         private Action<int, object, GameObject> updater;
         
         private readonly Dictionary<Object, ObjectPool> prefabToPool = new Dictionary<Object, ObjectPool>();
-        private readonly Dictionary<Transform, ObjectPool> itemToPool= new Dictionary<Transform, ObjectPool>();
-        private Transform poolRoot;
+        private Transform poolContainer;
 
         private bool refreshDirty = true;
 
@@ -424,7 +423,7 @@ namespace UnityEngine.UI
 
             for (int i = content.childCount - 1; i >= 0; i--)
             {
-                ReturnContentChildObject(content.GetChild(i));
+                ObjectPool.ReleaseObject(content.GetChild(i).gameObject);
             }
 
             LayoutRebuilder.ForceRebuildLayoutImmediate(content);
@@ -473,7 +472,7 @@ namespace UnityEngine.UI
             {
                 RectTransform oldItem = content.GetChild(0) as RectTransform;
                 size = Mathf.Max(GetSize(oldItem), size);
-                ReturnContentChildObject(oldItem);
+                ObjectPool.ReleaseObject(oldItem.gameObject);
 
                 itemTypeStart++;
 
@@ -566,7 +565,7 @@ namespace UnityEngine.UI
             {
                 RectTransform oldItem = content.GetChild(content.childCount - 1) as RectTransform;
                 size = Mathf.Max(GetSize(oldItem), size);
-                ReturnContentChildObject(oldItem);
+                ObjectPool.ReleaseObject(oldItem.gameObject);
 
                 itemTypeEnd--;
                 if (itemTypeEnd % contentConstraintCount == 0 || content.childCount == 0)
@@ -587,33 +586,28 @@ namespace UnityEngine.UI
 
         private RectTransform InstantiateNextItem(int itemIdx)
         {
-            var prefab = prefabProvider(itemIdx, dataProvider(itemIdx));
+            var itemData = dataProvider(itemIdx);
+            var prefab = prefabProvider(itemIdx, itemData);
             ObjectPool pool;
             if (!prefabToPool.TryGetValue(prefab, out pool))
             {
-                if (poolRoot == null)
+                if (poolContainer == null)
                 {
-                    poolRoot = new GameObject("pool").transform;
-                    poolRoot.SetParent(transform, false);
-                    poolRoot.gameObject.SetActive(false);
+                    poolContainer = new GameObject("pool").transform;
+                    poolContainer.SetParent(transform, false);
+                    poolContainer.gameObject.SetActive(false);
                 }
-                pool = new ObjectPool(prefab, poolRoot);
+                pool = new ObjectPool(poolContainer, prefab);
                 prefabToPool[prefab] = pool;
             }
 
             RectTransform nextItem = pool.GetObject().GetComponent<RectTransform>();
-            itemToPool[nextItem] = pool;
             nextItem.transform.SetParent(content, false);
             nextItem.gameObject.SetActive(true);
-            updater(itemIdx, dataProvider(itemIdx), nextItem.gameObject);
+            updater(itemIdx, itemData, nextItem.gameObject);
             return nextItem;
         }
-        
-        private void ReturnContentChildObject(Transform child)
-        {
-            itemToPool[child].ReturnObject(child.gameObject);
-            itemToPool.Remove(child);
-        }
+
         //==========LoopScrollRect==========
 
         public virtual void Rebuild(CanvasUpdate executing)
