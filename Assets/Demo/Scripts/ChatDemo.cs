@@ -127,9 +127,10 @@ public class ChatDemo : MonoBehaviour
         scroll.UpdateList(
             messages,
             messageRendererPrefab,
+            view => view.Init(OnRemoveClick),
             (i, msg, view) =>
             {
-                view.Init(OnRemoveClick).UpdateState(i, msg);
+                view.UpdateState(i, msg);
                 LayoutRebuilder.ForceRebuildLayoutImmediate(view.GetComponent<RectTransform>());
             }
         );

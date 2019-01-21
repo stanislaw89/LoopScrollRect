@@ -18,6 +18,7 @@ namespace UnityEngine.UI
         private int totalCount;
         private Func<int, object> dataProvider;        
         private Func<int, object, GameObject> prefabProvider;
+        private Action<GameObject> prefabInitializer;
         private Action<int, object, GameObject> updater;
         
         private readonly Dictionary<Object, ObjectPool> prefabToPool = new Dictionary<Object, ObjectPool>();
@@ -267,50 +268,73 @@ namespace UnityEngine.UI
         }
 
         //==========LoopScrollRect==========
-        
+
         public void UpdateEnumerable<D, V>(IEnumerable<D> data, V prefab, Action<int, D, V> updater) where V : Component
         {
             UpdateList(data.ToList(), prefab, updater);
         }
 
-        public void UpdateEnumerable<D, V>(IEnumerable<D> data, Func<int, object, V> prefabProvider, Action<int, D, V> updater) where V : Component
+        public void UpdateEnumerable<D, V>(IEnumerable<D> data, V prefab, Action<V> prefabInitializer, Action<int, D, V> updater) where V : Component
         {
-            UpdateList(data.ToList(), prefabProvider, updater);
+            UpdateList(data.ToList(), prefab, prefabInitializer, updater);
+        }
+
+        public void UpdateEnumerable<D, V>(IEnumerable<D> data, Func<int, object, V> prefabProvider, Action<V> prefabInitializer, Action<int, D, V> updater) where V : Component
+        {
+            UpdateList(data.ToList(), prefabProvider, prefabInitializer, updater);
         }
 
         public void UpdateList<D, V>(IList<D> list, V prefab, Action<int, D, V> updater) where V : Component
         {
-            this.totalCount = list.Count;
-            this.dataProvider = i => list[i];
-            this.prefabProvider = (i, data) => prefab.gameObject;
-            this.updater = (i, data, view) => updater(i, (D) data, view.GetComponent<V>());
-            RefreshCells();
+            UpdateData(
+                list.Count,
+                i => list[i],
+                (i, data) => prefab.gameObject,
+                ObjectPool.EmptyInitializer,
+                (i, data, view) => updater(i, (D) data, view.GetComponent<V>())
+            );
         }
 
-        public void UpdateList<D, V>(IList<D> list, Func<int, object, V> prefabProvider, Action<int, D, V> updater) where V : Component
+        public void UpdateList<D, V>(IList<D> list, V prefab, Action<V> prefabInitializer, Action<int, D, V> updater) where V : Component
         {
-            this.totalCount = list.Count;
-            this.dataProvider = i => list[i];
-            this.prefabProvider = (i, data) => prefabProvider(i, data).gameObject;
-            this.updater = (i, data, view) => updater(i, (D) data, view.GetComponent<V>());
-            RefreshCells();
+            UpdateData(
+                list.Count,
+                i => list[i],
+                (i, data) => prefab.gameObject,
+                o => prefabInitializer(o.GetComponent<V>()),
+                (i, data, view) => updater(i, (D) data, view.GetComponent<V>())
+            );
         }
 
-        public void UpdateData<D, V>(int totalCount, Func<int, object> dataProvider, V prefab, Action<int, D, V> updater) where V : Component
+        public void UpdateList<D, V>(IList<D> list, Func<int, object, V> prefabProvider, Action<V> prefabInitializer, Action<int, D, V> updater) where V : Component
+        {
+            UpdateData(
+                list.Count,
+                i => list[i],
+                (i, data) => prefabProvider(i, data).gameObject,
+                o => prefabInitializer(o.GetComponent<V>()),
+                (i, data, view) => updater(i, (D) data, view.GetComponent<V>())
+            );
+        }
+
+        public void UpdateData<D, V>(int totalCount, Func<int, object> dataProvider, V prefab, Action<V> prefabInitializer, Action<int, D, V> updater) where V : Component
+        {
+            UpdateData(
+                totalCount,
+                dataProvider,
+                (i, data) => prefab.gameObject,
+                o => prefabInitializer(o.GetComponent<V>()),
+                (i, data, view) => updater(i, (D) data, view.GetComponent<V>())
+            );
+        }
+
+        public void UpdateData(int totalCount, Func<int, object> dataProvider, Func<int, object, GameObject> prefabProvider, Action<GameObject> prefabInitializer, Action<int, object, GameObject> updater)
         {
             this.totalCount = totalCount;
             this.dataProvider = dataProvider;
-            this.prefabProvider = (i, data) => prefab.gameObject;
-            this.updater = (i, data, view) => updater(i, (D) data, view.GetComponent<V>());
-            RefreshCells();
-        }
-
-        public void UpdateData<D, V>(int totalCount, Func<int, object> dataProvider, Func<int, object, V> prefabProvider, Action<int, D, V> updater) where V : Component
-        {
-            this.totalCount = totalCount;
-            this.dataProvider = dataProvider;
-            this.prefabProvider = (i, data) => prefabProvider(i, data).gameObject;
-            this.updater = (i, data, view) => updater(i, (D) data, view.GetComponent<V>());
+            this.prefabProvider = prefabProvider;
+            this.prefabInitializer = prefabInitializer;
+            this.updater = updater;
             RefreshCells();
         }
 
@@ -597,7 +621,7 @@ namespace UnityEngine.UI
                     poolContainer.SetParent(transform, false);
                     poolContainer.gameObject.SetActive(false);
                 }
-                pool = new ObjectPool(poolContainer, prefab);
+                pool = new ObjectPool(poolContainer, prefab, prefabInitializer);
                 prefabToPool[prefab] = pool;
             }
 

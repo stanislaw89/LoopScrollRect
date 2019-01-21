@@ -19,6 +19,7 @@ namespace SG
                 totalCount,
                 i => i,
                 prefab.transform,
+                o => { },
                 (i, o, view) => view.SendMessage("ScrollCellIndex", i)
             );
         }

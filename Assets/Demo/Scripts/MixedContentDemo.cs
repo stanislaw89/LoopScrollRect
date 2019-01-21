@@ -23,20 +23,22 @@ public class MixedContentDemo : MonoBehaviour
 
     private void Start()
     {
-        scroll.UpdateData<object, MixedContentRenderer>(500,
+        scroll.UpdateData(500,
             i => items[i % items.Count],
             (i, item) =>
             {
                 if (item is int)
                 {
-                    return intRenderer;
+                    return intRenderer.gameObject;
                 }
                 else
                 {
-                    return stringRenderer;
+                    return stringRenderer.gameObject;
                 }
             },
-            (i, item, view) => view.UpdateState(item, i)
+            contentRenderer => { },
+            (i, item, go) => go.GetComponent<MixedContentRenderer>().UpdateState(item, i)
         );
     }
+    
 }

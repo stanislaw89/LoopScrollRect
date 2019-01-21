@@ -5,15 +5,19 @@ namespace UnityEngine.UI
 {
     public class ObjectPool
     {
+        public static readonly Action<GameObject> EmptyInitializer = o => { };
+
         private readonly Transform container;
         private readonly GameObject prefab;
+        private readonly Action<GameObject> prefabInitializer;
 
         private readonly Stack<GameObject> stack = new Stack<GameObject>();
 
-        public ObjectPool(Transform container, GameObject prefab)
+        public ObjectPool(Transform container, GameObject prefab, Action<GameObject> prefabInitializer)
         {
             this.container = container;
             this.prefab = prefab;
+            this.prefabInitializer = prefabInitializer;
         }
 
         public GameObject GetObject()
@@ -28,6 +32,7 @@ namespace UnityEngine.UI
             {
                 var newObject = Object.Instantiate(prefab);
                 newObject.AddComponent<PooledObject>().ownerPool = this;
+                prefabInitializer(newObject);
                 return newObject;
             }
         }
