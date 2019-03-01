@@ -16,7 +16,7 @@ namespace SG
         void Start()
         {
             scroll.UpdateData<int, Transform>(
-                totalCount,
+                () => totalCount,
                 i => i,
                 prefab.transform,
                 o => { },

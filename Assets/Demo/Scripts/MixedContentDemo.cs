@@ -23,7 +23,7 @@ public class MixedContentDemo : MonoBehaviour
 
     private void Start()
     {
-        scroll.UpdateData(500,
+        scroll.UpdateData(() => 500,
             i => items[i % items.Count],
             (i, item) =>
             {

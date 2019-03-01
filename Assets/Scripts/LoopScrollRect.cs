@@ -15,7 +15,8 @@ namespace UnityEngine.UI
     {
         //==========LoopScrollRect==========
 
-        private int totalCount;
+        private int totalCount {get { return totalProvider(); }}
+        private Func<int> totalProvider;
         private Func<int, object> dataProvider;        
         private Func<int, object, GameObject> prefabProvider;
         private Action<GameObject> prefabInitializer;
@@ -287,7 +288,7 @@ namespace UnityEngine.UI
         public void UpdateList<D, V>(IList<D> list, V prefab, Action<int, D, V> updater) where V : Component
         {
             UpdateData(
-                list.Count,
+                () => list.Count,
                 i => list[i],
                 (i, data) => prefab.gameObject,
                 ObjectPool.EmptyInitializer,
@@ -298,7 +299,7 @@ namespace UnityEngine.UI
         public void UpdateList<D, V>(IList<D> list, V prefab, Action<V> prefabInitializer, Action<int, D, V> updater) where V : Component
         {
             UpdateData(
-                list.Count,
+                () => list.Count,
                 i => list[i],
                 (i, data) => prefab.gameObject,
                 o => prefabInitializer(o.GetComponent<V>()),
@@ -309,7 +310,7 @@ namespace UnityEngine.UI
         public void UpdateList<D, V>(IList<D> list, Func<int, object, V> prefabProvider, Action<V> prefabInitializer, Action<int, D, V> updater) where V : Component
         {
             UpdateData(
-                list.Count,
+                () => list.Count,
                 i => list[i],
                 (i, data) => prefabProvider(i, data).gameObject,
                 o => prefabInitializer(o.GetComponent<V>()),
@@ -317,10 +318,10 @@ namespace UnityEngine.UI
             );
         }
 
-        public void UpdateData<D, V>(int totalCount, Func<int, object> dataProvider, V prefab, Action<V> prefabInitializer, Action<int, D, V> updater) where V : Component
+        public void UpdateData<D, V>(Func<int> totalProvider, Func<int, object> dataProvider, V prefab, Action<V> prefabInitializer, Action<int, D, V> updater) where V : Component
         {
             UpdateData(
-                totalCount,
+                totalProvider,
                 dataProvider,
                 (i, data) => prefab.gameObject,
                 o => prefabInitializer(o.GetComponent<V>()),
@@ -328,9 +329,9 @@ namespace UnityEngine.UI
             );
         }
 
-        public void UpdateData(int totalCount, Func<int, object> dataProvider, Func<int, object, GameObject> prefabProvider, Action<GameObject> prefabInitializer, Action<int, object, GameObject> updater)
+        public void UpdateData(Func<int> totalProvider, Func<int, object> dataProvider, Func<int, object, GameObject> prefabProvider, Action<GameObject> prefabInitializer, Action<int, object, GameObject> updater)
         {
-            this.totalCount = totalCount;
+            this.totalProvider = totalProvider;
             this.dataProvider = dataProvider;
             this.prefabProvider = prefabProvider;
             this.prefabInitializer = prefabInitializer;
