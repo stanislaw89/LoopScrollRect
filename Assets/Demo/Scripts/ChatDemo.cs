@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using SG;
 using UnityEngine;
 using UnityEngine.UI;
@@ -84,8 +82,8 @@ public class ChatDemo : MonoBehaviour
 
     public void SendChatMessage()
     {
-        messages.Add(inputField.text);
         var positionAtEnd = scroll.normalizedPosition.y >= 1;
+        messages.Add(inputField.text);
         UpdateScroll();
         if (positionAtEnd)
         {
