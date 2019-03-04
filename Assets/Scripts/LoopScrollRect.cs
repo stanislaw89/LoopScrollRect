@@ -441,10 +441,10 @@ namespace UnityEngine.UI
             }
 
             if (reverseDirection)
-                itemTypeStart = Mathf.Clamp(itemTypeEnd, 0, totalCount);
+                itemTypeEnd = itemTypeStart = Mathf.Clamp((itemTypeEnd + contentConstraintCount - 1) / contentConstraintCount * contentConstraintCount, 0, totalCount);
             else
-                itemTypeEnd = Mathf.Clamp(itemTypeStart, 0, totalCount);
-
+                itemTypeStart = itemTypeEnd = Mathf.Clamp(itemTypeStart, 0, totalCount / contentConstraintCount * contentConstraintCount);
+            
             for (int i = content.childCount - 1; i >= 0; i--)
             {
                 ObjectPool.ReleaseObject(content.GetChild(i).gameObject);
