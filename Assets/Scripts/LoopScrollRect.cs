@@ -1,10 +1,9 @@
-﻿using UnityEngine;
-using UnityEngine.Events;
-using UnityEngine.EventSystems;
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine.Events;
+using UnityEngine.EventSystems;
 
 namespace UnityEngine.UI
 {
@@ -95,7 +94,7 @@ namespace UnityEngine.UI
             }
         }
 
-        protected virtual bool UpdateItems(Bounds viewBounds, Bounds contentBounds, bool refill) { return false; }
+        protected abstract bool UpdateItems(Bounds viewBounds, Bounds contentBounds, bool refill);
         //==========LoopScrollRect==========
 
         public enum MovementType
@@ -458,12 +457,15 @@ namespace UnityEngine.UI
 
         protected float NewItemAtStart()
         {
-            if (totalCount >= 0 && itemTypeStart - contentConstraintCount < 0)
+            var count = totalCount < 0
+                ? contentConstraintCount
+                : Mathf.Min((itemTypeStart - 1) % contentConstraintCount + 1, contentConstraintCount);
+            if (count <= 0)
             {
                 return 0;
             }
             float size = 0;
-            for (int i = 0; i < contentConstraintCount; i++)
+            for (int i = 0; i < count; i++)
             {
                 itemTypeStart--;
                 RectTransform newItem = InstantiateNextItem(itemTypeStart);
